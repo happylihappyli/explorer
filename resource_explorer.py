@@ -310,7 +310,8 @@ class ResourceExplorer:
                 path = item_values[0]
             # 处理驱动器
             elif len(item_text) >= 3 and item_text[1] == ":" and item_text[2] == "/":
-                path = item_text.split()[0]  # 获取驱动器路径
+                # 提取驱动器路径，例如从 "📁 C:/ (本地磁盘)" 提取 "C:/"
+                path = item_text.split()[0][1:] + item_text.split()[1] if len(item_text.split()) > 1 else item_text.split()[0][1:]
             else:
                 # 尝试获取父节点路径
                 parent = self.nav_tree.parent(item)

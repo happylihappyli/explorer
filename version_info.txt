@@ -1,0 +1,37 @@
+# version_info.py - PyInstaller版本信息文件 (Python格式)
+
+# 导入PyInstaller的版本信息模块
+from PyInstaller.utils.win32.versioninfo import (VSVersionInfo, FixedFileInfo, StringFileInfo, StringTable, StringStruct)
+
+# 定义版本信息
+VERSION = VSVersionInfo(
+    ffi=FixedFileInfo(
+        filevers=(1, 0, 0, 0),  # 四个整数：主版本号, 次版本号, 修订号, 构建号
+        prodvers=(1, 0, 0, 0),
+        mask=0x3f,  # 固定值
+        flags=0x0,  # 固定值
+        OS=0x4,  # 操作系统类型，0x4表示Windows NT
+        fileType=0x1,  # 文件类型，0x1表示应用程序
+        subtype=0x0,  # 子类型，0表示不适用
+        date=(0, 0)  # 日期戳，这里设为0
+    ),
+    kids=[
+        StringFileInfo([
+            StringTable(
+                '040904e4',  # 语言ID和代码页 (0409=英语, 04e4=UTF-8)
+                [
+                    StringStruct('CompanyName', '个人开发者'),
+                    StringStruct('FileDescription', '资源管理器 - 简单的文件管理工具'),
+                    StringStruct('FileVersion', '1.0.0.0'),
+                    StringStruct('InternalName', 'ResourceExplorer'),
+                    StringStruct('LegalCopyright', '版权所有 (C) 2024 个人开发者'),
+                    StringStruct('LegalTrademarks', ''),
+                    StringStruct('OriginalFilename', 'ResourceExplorer.exe'),
+                    StringStruct('ProductName', '资源管理器'),
+                    StringStruct('ProductVersion', '1.0.0.0')
+                ]
+            )
+        ]),
+        # 可以添加VarFileInfo部分，但通常不需要
+    ]
+)
