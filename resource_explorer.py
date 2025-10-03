@@ -61,6 +61,10 @@ class ResourceExplorer:
         self.status_bar = ttk.Label(root, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
         
+        # 添加测试功能：启动时直接显示C盘根目录内容，用于验证路径处理
+        # 这将帮助诊断为什么点击驱动器时内容不显示
+        self.root.after(1000, self.test_drive_display)
+        
         # 当前路径
         self.current_path = None
         
@@ -95,6 +99,11 @@ class ResourceExplorer:
         # 绑定事件
         self.nav_tree.bind("<Double-1>", self.on_nav_item_double_click)
         self.nav_tree.bind("<Button-1>", self.on_nav_item_click)
+        # 绑定右键菜单事件
+        self.nav_tree.bind("<Button-3>", self.show_nav_context_menu)
+        
+        # 创建导航树右键菜单
+        self.nav_context_menu = tk.Menu(self.root, tearoff=0)
     
     def create_content_view(self):
         """创建内容视图"""
@@ -177,6 +186,9 @@ class ResourceExplorer:
         # 剪贴板操作变量
         self.copied_item = None
         self.is_cut = False
+        
+        # 创建导航树右键菜单
+        self.nav_context_menu = tk.Menu(self.root, tearoff=0)
     
     def get_file_icon(self, file_path):
         """根据文件类型返回对应的图标"""
@@ -251,6 +263,9 @@ class ResourceExplorer:
         # 先添加收藏夹
         self.favorites_id = self.nav_tree.insert("", tk.END, text=FAVORITES_ICON + " 收藏夹")
         self.update_favorites_view()
+        
+        # 自动展开收藏夹
+        self.nav_tree.item(self.favorites_id, open=True)
         
         # 添加分隔线
         self.nav_tree.insert("", tk.END, text="------------------------------------------", tags=("separator",))
@@ -344,9 +359,110 @@ class ResourceExplorer:
             print(f"导航树双击事件处理错误: {str(e)}")
     
     def on_nav_item_click(self, event):
-        """导航树单击事件处理"""
-        # 这里可以添加单击选中的逻辑
-        pass
+        """导航树单击事件处理 - 实现点击根目录显示文件和目录"""
+        try:
+            # 获取点击位置的项目ID
+            clicked_item = self.nav_tree.identify_row(event.y)
+            print(f"点击位置的项目ID: {clicked_item}")
+            
+            if clicked_item:
+                # 选中点击的项目
+                self.nav_tree.selection_set(clicked_item)
+                print(f"已选中项目: {clicked_item}")
+                
+                # 使用已选中的项目进行后续处理
+                selected_items = self.nav_tree.selection()
+                if selected_items:
+                    item = selected_items[0]
+                    print(f"最终使用的项目ID: {item}")
+                    
+                    # 获取项目文本和值
+                    item_text = self.nav_tree.item(item, "text")
+                    item_values = self.nav_tree.item(item, "values")
+                    
+                    # 添加详细调试信息
+                    print(f"导航树点击事件: item_text = {item_text}")
+                    print(f"item_values = {item_values}")
+                    
+                    # 处理分隔线
+                    if "------------------------------------------" in item_text:
+                        print("跳过分隔线项目")
+                        return
+                    
+                    # 处理收藏夹节点
+                    if item == self.favorites_id:
+                        print("跳过收藏夹根节点")
+                        return
+                    
+                    # 获取路径
+                    path = None
+                    
+                    # 1. 首先检查是否有直接存储的路径值
+                    if item_values and len(item_values) > 0:
+                        path = item_values[0]
+                        print(f"从item_values获取路径: {path}")
+                    # 2. 然后检查是否是驱动器项 - 优化的驱动器路径提取方法
+                    elif len(item_text) >= 3 and item_text[1] == ":" and (item_text[2] == "/" or item_text[2] == "\\"):
+                        # 提取驱动器路径，例如从 "💾 C:/ (本地磁盘)" 提取 "C:/"
+                        drive_letter = item_text[1]  # 获取驱动器字母
+                        path = f"{drive_letter}:\\"  # 使用Windows标准路径格式
+                        print(f"处理驱动器: 提取路径 = {path}")
+                    # 3. 检查是否包含驱动器字母和冒号（更通用的驱动器格式检测）
+                    elif any(char + ":" in item_text for char in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"):
+                        # 查找驱动器字母和冒号组合
+                        for i in range(len(item_text) - 1):
+                            if item_text[i].isalpha() and item_text[i+1] == ":":
+                                drive_letter = item_text[i].upper()
+                                path = f"{drive_letter}:\\"
+                                print(f"处理驱动器（通用格式）: 提取路径 = {path}")
+                                break
+                    # 4. 最后尝试通过父节点构建路径
+                    else:
+                        # 尝试获取父节点路径
+                        parent = self.nav_tree.parent(item)
+                        if not parent:
+                            print("没有父节点，但尝试作为根目录处理")
+                            # 尝试将当前项作为根目录处理（可能是特殊节点）
+                            # 从item_text中提取名称
+                            folder_name = item_text.split(" ")[-1]
+                            # 尝试直接使用名称作为路径（针对特殊情况）
+                            path = folder_name
+                            print(f"尝试作为根目录处理: 路径 = {path}")
+                        else:
+                            parent_text = self.nav_tree.item(parent, "text")
+                            parent_values = self.nav_tree.item(parent, "values")
+                            print(f"父节点文本: {parent_text}, 父节点值: {parent_values}")
+                             
+                            parent_path = None
+                            if parent_values and len(parent_values) > 0:
+                                parent_path = parent_values[0]
+                            elif len(parent_text) >= 3 and parent_text[1] == ":" and parent_text[2] == "/":
+                                parent_drive_letter = parent_text[1]
+                                parent_path = f"{parent_drive_letter}:\\"
+                             
+                            if parent_path:
+                                # 从item_text中提取文件夹名称（去除图标）
+                                folder_name = item_text.split(" ")[-1]
+                                path = os.path.join(parent_path, folder_name)
+                                print(f"处理文件夹: 构建路径 = {path}")
+                            else:
+                                print("无法获取父节点路径")
+                    
+                    # 检查路径是否存在
+                    if path:
+                        print(f"准备显示目录内容: {path}")
+                        print(f"路径存在: {os.path.exists(path)}")
+                        print(f"是目录: {os.path.isdir(path) if os.path.exists(path) else False}")
+                        self.show_directory_content(path)
+                else:
+                    print("没有选中的项目")
+            else:
+                print("未识别到点击的项目")
+        except Exception as e:
+            print(f"导航树单击事件处理错误: {str(e)}")
+            # 打印完整的错误堆栈
+            import traceback
+            traceback.print_exc()
     
     def load_directory(self, path, tree_item):
         """加载目录内容到导航树"""
@@ -372,8 +488,22 @@ class ResourceExplorer:
         except Exception as e:
             messagebox.showerror("错误", f"加载目录时出错: {str(e)}")
     
+    def test_drive_display(self):
+        """测试方法：直接显示C盘根目录内容，用于验证路径处理是否正确"""
+        test_path = "C:\\"
+        print(f"测试显示驱动器内容: path = {test_path}")
+        print(f"测试路径存在: {os.path.exists(test_path)}")
+        print(f"测试路径是目录: {os.path.isdir(test_path)}")
+        
+        # 直接调用显示目录内容的方法
+        self.show_directory_content(test_path)
+    
     def show_directory_content(self, path):
         """显示目录内容"""
+        print(f"显示目录内容: path = {path}")
+        print(f"路径存在: {os.path.exists(path)}")
+        print(f"路径是目录: {os.path.isdir(path)}")
+        
         start_time = time.time()  # 开始计时
         
         # 保存当前路径
@@ -391,6 +521,10 @@ class ResourceExplorer:
             items = []
             # 先添加目录
             for item in os.listdir(path):
+                # 跳过$RECYCLE.BIN目录
+                if item.upper() == "$RECYCLE.BIN":
+                    continue
+                
                 item_path = os.path.join(path, item)
                 if os.path.isdir(item_path):
                     try:
@@ -796,6 +930,52 @@ class ResourceExplorer:
         # 这里可以添加不同视图模式的切换逻辑
         # 当前版本主要支持列表视图，详情视图基本相同
         pass
+    
+    def show_nav_context_menu(self, event):
+        """显示导航树右键菜单 - 主要用于实现收藏夹右键取消收藏功能"""
+        try:
+            # 获取点击的项目
+            item = self.nav_tree.identify_row(event.y)
+            if item:
+                # 选中点击的项目
+                self.nav_tree.selection_set(item)
+                
+                # 判断是否是收藏夹下的项目
+                parent = self.nav_tree.parent(item)
+                if parent == self.favorites_id:
+                    # 重新创建导航树右键菜单
+                    self.nav_context_menu.delete(0, tk.END)
+                    
+                    # 获取收藏项目的路径
+                    item_values = self.nav_tree.item(item, "values")
+                    if item_values and len(item_values) > 0:
+                        favorite_path = item_values[0]
+                        favorite_name = os.path.basename(favorite_path)
+                        
+                        # 添加取消收藏菜单项
+                        self.nav_context_menu.add_command(
+                            label="打开", 
+                            command=lambda: self.show_directory_content(favorite_path)
+                        )
+                        self.nav_context_menu.add_separator()
+                        self.nav_context_menu.add_command(
+                            label="从收藏夹移除", 
+                            command=lambda: self.remove_favorite_item(favorite_path, item)
+                        )
+                        
+                        # 显示菜单
+                        self.nav_context_menu.post(event.x_root, event.y_root)
+        except Exception as e:
+            print(f"显示导航树右键菜单时出错: {str(e)}")
+    
+    def remove_favorite_item(self, path, tree_item):
+        """从收藏夹移除指定项目"""
+        if self.remove_from_favorites(path):
+            # 从树中删除该项
+            if self.nav_tree.exists(tree_item):
+                self.nav_tree.delete(tree_item)
+            # 显示成功消息
+            messagebox.showinfo("成功", f"已从收藏夹移除 '{os.path.basename(path)}'")
 
 def main():
     """主函数"""

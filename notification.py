@@ -8,5 +8,5 @@ en.setProperty('rate', 150)  # 语速
 en.setProperty('volume', 1.0)  # 音量
 
 # 播放语音提示
-en.say("编译成功！程序已打包为可执行文件，位于dist目录下的ResourceExplorer.exe文件中。")
+en.say("修改已完成，请查看文件资源管理器，$RECYCLE.BIN目录已经隐藏，收藏夹在启动时会自动展开。")
 en.runAndWait()

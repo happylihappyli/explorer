@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 from SCons.Script import DefaultEnvironment
 
 # 获取环境
@@ -29,9 +30,10 @@ def build_exe(target, source, env):
         # 安装pyinstaller
         install_pyinstaller()
     
-    # 构建pyinstaller命令
+    # 构建使用Python解释器运行PyInstaller的命令
     cmd = [
-        "pyinstaller",
+        sys.executable,  # 使用当前Python解释器
+        "-m", "PyInstaller",
         "--onefile",  # 创建单个可执行文件
         "--console",  # 使用控制台模式，方便调试
         "--name", PROJECT_NAME,
